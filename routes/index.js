@@ -28,4 +28,9 @@ app.post('/files', (req, res) => {
 
 app.post('/users', UsersController.postNew);
 
+app.get('/files/:id', FilesController.getShow);
+app.get('/files', FilesController.getIndex);
+
+
+
 module.exports = app;
