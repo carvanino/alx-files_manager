@@ -12,7 +12,7 @@ class FilesController {
     let encodedData;
     const token = req.headers['x-token'];
     const key = `auth_${token}`;
-    const userId = await redisClient.get(key);
+    const userId = new ObjectId(await redisClient.get(key));
     const user = await dbClient.db.collection('users').findOne({ _id: ObjectId(userId) });
 
     if (!user) {
@@ -24,7 +24,7 @@ class FilesController {
     const { name } = req.body;
     const { type } = req.body;
     // const parentId = req.body.parentId || '0';
-    const parentId = req.body.parentId ? req.body.parentId : 0;
+    let parentId = req.body.parentId ? req.body.parentId : 0;
     const isPublic = req.body.isPublic ? req.body.isPublic : false;
     const { data } = req.body;
     console.log('HEre', data);
@@ -46,7 +46,8 @@ class FilesController {
     }
 
     if (parentId) {
-      const files = await dbClient.db.collection('files').findOne({ _id: new ObjectId(parentId) });
+      parentId = new ObjectId(parentId);
+      const files = await dbClient.db.collection('files').findOne({ _id: parentId });
       console.log(files.type);
       if (!files) {
         return res.send({ error: 'Parent not found' }).status(400);
@@ -64,8 +65,13 @@ class FilesController {
         parentId,
       };
       await dbClient.db.collection('files').insertOne(newFile);
+      const id = newFile._id;
+      delete newFile._id;
 
-      return res.send(newFile).status(201);
+      return res.send({
+        id,
+        ...newFile,
+      }).status(201);
     }
 
     // if type is not a folder
@@ -95,12 +101,20 @@ class FilesController {
     };
 
     await dbClient.db.collection('files').insertOne(newFile);
-    return res.send(newFile).status(201);
+
+    const id = newFile._id;
+    delete newFile._id;
+    delete newFile.localPath;
+
+    return res.send({
+      id,
+      ...newFile,
+    }).status(201);
   }
 
   static async getShow(req, res) {
-    const { id } = req.params;
-    console.log(id);
+    let { id } = req.params;
+    // console.log(id);
 
     // get the user based on a token
     const token = req.headers['x-token'];
@@ -112,12 +126,19 @@ class FilesController {
       return res.send({ error: 'Unauthorized' }).status(401);
     }
 
-    const file = await dbClient.db.collection('files').findOne({ userId });
+    const file = await dbClient.db.collection('files').findOne({ userId: new ObjectId(userId), _id: new ObjectId(id) });
+    // console.log(file);
     if (!file) {
       return res.send({ error: 'Not found' }).status(404);
     }
+    id = file._id;
+    delete file._id;
+    delete file.localPath;
 
-    return res.send(file);
+    return res.send({
+      id,
+      ...file,
+    });
   }
 
   static async getIndex(req, res) {
@@ -131,18 +152,26 @@ class FilesController {
     }
 
     // get query parameters
-    const parentId = req.query.parentId ? req.query.parentId : 0;
+    const parentId = req.query.parentId ? new ObjectId(req.query.parentId) : 0;
+    console.log(parentId);
+
     const { page } = req.query;
     const pageSize = 20;
     const endIndex = pageSize * page;
-    const startIndex = endIndex - pageSize;
+    // const startIndex = endIndex - pageSize;
 
     const pipeline = [
-      { $match: { _id: new ObjectId(parentId) } },
+      { $match: { parentId } },
       { $skip: endIndex },
       { $limit: pageSize },
     ];
     const pagedFiles = await dbClient.db.collection('files').aggregate(pipeline).toArray();
+
+    for (const file of pagedFiles) {
+      file.id = file._id;
+      delete file._id;
+      delete file.localPath;
+    }
     return res.send(pagedFiles);
     // if (!files) {
     //   return [];
