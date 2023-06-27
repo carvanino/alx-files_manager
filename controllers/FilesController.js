@@ -2,6 +2,7 @@ import dbClient from '../utils/db';
 import redisClient from '../utils/redis';
 // import uuid from 'uuid';
 const uuid = require('uuid');
+const mime = require('mime-types');
 
 const fs = require('fs');
 const { ObjectId } = require('mongodb');
@@ -180,7 +181,7 @@ class FilesController {
     const key = `auth_${token}`;
     const userId = await redisClient.get(key);
     const user = await dbClient.db.collection('users').findOne({ _id: ObjectId(userId) });
-    const { id } = req.params;
+    let { id } = req.params;
 
     if (!user) {
       return res.send({ error: 'Unauthorized' }).status(401);
@@ -190,8 +191,18 @@ class FilesController {
     if (!file) {
       return res.send({ error: 'Not found' }).status(404);
     }
-    file.isPublic = true;
-    return res.send(file).status(200);
+    // file.isPublic = true;
+    await dbClient.db.collection('files').updateOne({ _id: ObjectId(id) }, { $set: { isPublic: true } });
+
+    const updatedFile = await dbClient.db.collection('files').findOne({ _id: ObjectId(id) });
+    id = updatedFile._id;
+    delete updatedFile._id;
+    delete updatedFile.localPath;
+
+    return res.send({
+      id,
+      ...updatedFile,
+    }).status(200);
   }
 
   static async putUnpublish(req, res) {
@@ -208,15 +219,64 @@ class FilesController {
     if (!file) {
       return res.send({ error: 'Not found' }).status(404);
     }
-    file.isPublic = false;
-    id = file._id;
-    delete file._id;
-    delete file.localPath;
+    // file.isPublic = false;
+    await dbClient.db.collection('files').updateOne({ _id: ObjectId(id) }, { $set: { isPublic: false } });
+
+    const updatedFile = await dbClient.db.collection('files').findOne({ _id: ObjectId(id) });
+    id = updatedFile._id;
+    delete updatedFile._id;
+    delete updatedFile.localPath;
 
     return res.send({
       id,
-      ...file,
+      ...updatedFile,
     }).status(200);
+  }
+
+  static async getFile(req, res) {
+    const token = req.headers['x-token'];
+    const key = `auth_${token}`;
+    const userId = await redisClient.get(key);
+    console.log('user id', userId);
+
+    const { id } = req.params;
+
+    const file = await dbClient.db.collection('files').findOne({ _id: new ObjectId(id) });
+    console.log('File user ', file.userId);
+    console.log('user id and file id is truthy', file.userId !== userId);
+    console.log(typeof (userId));
+    console.log(typeof (file.userId));
+    if (!file) {
+      console.log('A');
+      return res.send({ error: 'Not found' }).status(404);
+    }
+    console.log(' File is public?', file.isPublic);
+    if ((file.isPublic === false) && (!userId || file.userId.toString() !== userId.toString())) {
+      console.log('B');
+      return res.send({ error: 'Not found' }).status(404);
+    }
+
+    if (file.type === 'folder') {
+      return res.send({ error: 'A folder doesn\'t have content' }).status(400);
+    }
+    // const FOLDER_PATH = process.env.FOLDER_PATH ? process.env.FOLDER_PATH : '/tmp/files_manager';
+    // const localPath = `${FOLDER_PATH}/${uuid.v4()}`;
+
+    if (!fs.existsSync(file.localPath)) {
+      console.log('C');
+      return res.send({ error: 'Not found' }).status(404);
+    }
+    const mimeType = mime.lookup(file.name);
+    console.log(mimeType);
+    fs.readFile(file.localPath, (err, data) => {
+      if (!err) {
+        res.setHeader('Content-Type', mimeType);
+        return res.send(data);
+      }
+      console.log(err);
+      return res.status(500);
+    });
+    return res.status(200);
   }
 }
 
