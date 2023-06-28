@@ -4,6 +4,10 @@ import redisClient from '../utils/redis';
 const uuid = require('uuid');
 const mime = require('mime-types');
 
+const Bull = require('bull');
+
+const fileQueue = new Bull('fileQueue');
+
 const fs = require('fs');
 const { ObjectId } = require('mongodb');
 
@@ -28,7 +32,7 @@ class FilesController {
     let parentId = req.body.parentId ? req.body.parentId : 0;
     const isPublic = req.body.isPublic ? req.body.isPublic : false;
     const { data } = req.body;
-    console.log('HEre', data);
+    // console.log('HEre', data);
 
     if (type === 'file' || type === 'image') {
       encodedData = Buffer.from(data, 'base64');
@@ -102,6 +106,12 @@ class FilesController {
     };
 
     await dbClient.db.collection('files').insertOne(newFile);
+    if (type === 'image') {
+      fileQueue.add({
+        userId: newFile.userId,
+        fileId: newFile._id,
+      });
+    }
 
     const id = newFile._id;
     delete newFile._id;
@@ -237,22 +247,17 @@ class FilesController {
     const token = req.headers['x-token'];
     const key = `auth_${token}`;
     const userId = await redisClient.get(key);
+    const { size } = req.query;
     console.log('user id', userId);
 
     const { id } = req.params;
 
     const file = await dbClient.db.collection('files').findOne({ _id: new ObjectId(id) });
-    console.log('File user ', file.userId);
-    console.log('user id and file id is truthy', file.userId !== userId);
-    console.log(typeof (userId));
-    console.log(typeof (file.userId));
     if (!file) {
-      console.log('A');
       return res.send({ error: 'Not found' }).status(404);
     }
     console.log(' File is public?', file.isPublic);
     if ((file.isPublic === false) && (!userId || file.userId.toString() !== userId.toString())) {
-      console.log('B');
       return res.send({ error: 'Not found' }).status(404);
     }
 
@@ -262,13 +267,37 @@ class FilesController {
     // const FOLDER_PATH = process.env.FOLDER_PATH ? process.env.FOLDER_PATH : '/tmp/files_manager';
     // const localPath = `${FOLDER_PATH}/${uuid.v4()}`;
 
-    if (!fs.existsSync(file.localPath)) {
-      console.log('C');
+    const mimeType = mime.lookup(file.name);
+    let { localPath } = file;
+
+    if (size) {
+      localPath = `${file.localPath}_${size}`;
+    }
+
+    if (!fs.existsSync(localPath)) {
       return res.send({ error: 'Not found' }).status(404);
     }
-    const mimeType = mime.lookup(file.name);
-    console.log(mimeType);
-    fs.readFile(file.localPath, (err, data) => {
+
+    // if (file.type === 'image') {
+    //   // const imagePath = `${file.localPath}_${size}`;
+    //   const imagePath = '/tmp/files_manager/45e786c6-5bb8-4661-998f-e6003eff8e41;_250'
+    //   console.log('The image path is', imagePath);
+    //   if (!fs.existsSync(imagePath)) {
+    //     return res.send({ error: 'Not found' }).status(404);
+    //   }
+    //   console.log(imagePath);
+    //   await fs.promises.readFile(imagePath, (err, data) => {
+    //     if (!err) {
+    //       res.setHeader('Content-Type', mimeType);
+    //       console.log('In here');
+    //       return res.sendFile(imagePath);
+    //     }
+    //     console.log(err)
+    //   });
+
+    // }
+
+    fs.readFile(localPath, (err, data) => {
       if (!err) {
         res.setHeader('Content-Type', mimeType);
         return res.send(data);
