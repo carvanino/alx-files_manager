@@ -21,7 +21,7 @@ class UsersController {
 
     const user = await dbClient.db.collection('users').find({ email }).toArray();
     console.log(user);
-    if (user) {
+    if (user.length > 0) {
       return res.send({ error: 'Already exist' }).status(400);
     }
 
@@ -43,7 +43,7 @@ class UsersController {
     if (!user) {
       return res.send({ error: 'Unauthorized' }).status(401);
     }
-    return res.send({ email: user.email, id: user._id });
+    return res.send({ id: user._id, email: user.email });
   }
 }
 module.exports = UsersController;
