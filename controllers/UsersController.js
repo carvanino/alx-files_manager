@@ -20,7 +20,7 @@ class UsersController {
     const hashedPwd = crypto.createHash('sha1').update(password).digest('hex');
 
     const user = await dbClient.db.collection('users').find({ email }).toArray();
-    console.log(user);
+    // console.log(user);
     if (user.length > 0) {
       return res.send({ error: 'Already exist' }).status(400);
     }

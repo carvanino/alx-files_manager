@@ -33,15 +33,15 @@ fileQueue.process(async (job, done) => {
       const thumbnail = await imageThumbnail(file.localPath, options);
       const thumbnailPath = `${file.localPath}_${width}`;
       // console.log(thumbnail)
-      console.log(thumbnailPath);
+      // console.log(thumbnailPath);
       await fs.promises.writeFile(thumbnailPath, thumbnail, (err) => {
         if (err) {
           console.log(err);
         }
       });
-      const thumbnailStats = await stat(thumbnailPath);
-      const thumbnailSize = thumbnailStats.size;
-      console.log(`Thumbnail size (${width}px): ${thumbnailSize} bytes`);
+      // const thumbnailStats = await stat(thumbnailPath);
+      // const thumbnailSize = thumbnailStats.size;
+      // console.log(`Thumbnail size (${width}px): ${thumbnailSize} bytes`);
     } catch (err) {
       console.log(err);
     }

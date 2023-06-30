@@ -31,7 +31,7 @@ class AuthController {
     }
 
     redisClient.del(key);
-    res.end()
+    res.end();
     return res.status(204);
   }
 }

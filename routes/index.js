@@ -21,8 +21,8 @@ app.get('/disconnect', AuthController.getDisconnect);
 app.get('/users/me', UsersController.getMe);
 
 app.post('/files', (req, res) => {
-  const contentLength = req.headers['content-length'];
-  console.log('Payload size: ', contentLength);
+  // const contentLength = req.headers['content-length'];
+  // console.log('Payload size: ', contentLength);
   FilesController.postUpload(req, res);
 });
 

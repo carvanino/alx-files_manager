@@ -53,7 +53,7 @@ class FilesController {
     if (parentId) {
       parentId = new ObjectId(parentId);
       const files = await dbClient.db.collection('files').findOne({ _id: parentId });
-      console.log(files.type);
+      // console.log(files.type);
       if (!files) {
         return res.send({ error: 'Parent not found' }).status(400);
       }
@@ -164,7 +164,7 @@ class FilesController {
 
     // get query parameters
     const parentId = req.query.parentId ? new ObjectId(req.query.parentId) : 0;
-    console.log(parentId);
+    // console.log(parentId);
 
     const { page } = req.query;
     const pageSize = 20;
@@ -247,7 +247,7 @@ class FilesController {
     const key = `auth_${token}`;
     const userId = await redisClient.get(key);
     const { size } = req.query;
-    console.log('user id', userId);
+    // console.log('user id', userId);
 
     const { id } = req.params;
 
