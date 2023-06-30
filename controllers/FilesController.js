@@ -81,7 +81,7 @@ class FilesController {
 
     // if type is not a folder
     const FOLDER_PATH = process.env.FOLDER_PATH ? process.env.FOLDER_PATH : '/tmp/files_manager';
-    const localPath = `${FOLDER_PATH}/${uuid.v4()};`;
+    const localPath = `${FOLDER_PATH}/${uuid.v4()}`;
     if (!fs.existsSync(FOLDER_PATH)) {
       fs.mkdir(FOLDER_PATH, (err) => {
         if (err) {
@@ -90,7 +90,7 @@ class FilesController {
       });
     }
 
-    fs.writeFile(localPath, encodedData, 'utf-8', (err) => {
+    fs.writeFileSync(localPath, encodedData, 'utf-8', (err) => {
       if (err) {
         console.log(err);
       }
@@ -197,7 +197,6 @@ class FilesController {
       return res.send({ error: 'Unauthorized' }).status(401);
     }
     const file = await dbClient.db.collection('files').findOne({ _id: new ObjectId(id), userId: new ObjectId(userId) });
-    console.log(file);
     if (!file) {
       return res.send({ error: 'Not found' }).status(404);
     }
@@ -256,7 +255,7 @@ class FilesController {
     if (!file) {
       return res.send({ error: 'Not found' }).status(404);
     }
-    console.log(' File is public?', file.isPublic);
+    // console.log(' File is public?', file.isPublic);
     if ((file.isPublic === false) && (!userId || file.userId.toString() !== userId.toString())) {
       return res.send({ error: 'Not found' }).status(404);
     }
