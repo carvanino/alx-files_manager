@@ -9,7 +9,7 @@ class AppController {
     };
     return res.status(200).send(dbStatus);
   }
-  
+
   static async getStats(req, res) {
     const expectedRes = {
       users: await dbClient.nbUsers(),
